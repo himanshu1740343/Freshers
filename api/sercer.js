@@ -2,16 +2,11 @@
 
 import admin from 'firebase-admin';
 
-// --- Initialize Firebase Admin ---
-// This checks if the app is already initialized to avoid errors.
+// --- Initialize Firebase Admin (no changes here) ---
 if (!admin.apps.length) {
   try {
-    // Get the credentials from the Vercel environment variable
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount)
-    });
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   } catch (error) {
     console.error('Firebase admin initialization error', error.stack);
   }
@@ -20,34 +15,38 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 export default async function handler(req, res) {
-  // --- Check for POST request ---
+  // --- START: ADD THESE HEADERS ---
+  // This allows your local development server to make requests
+  res.setHeader('Access-Control-Allow-Origin', 'http://172.21.0.138:5500');
+  // You can also use a wildcard '*' for public APIs, but being specific is more secure.
+  // res.setHeader('Access-Control-Allow-Origin', '*');
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  // --- END: ADD THESE HEADERS ---
+
+
+  // --- START: HANDLE PREFLIGHT REQUEST ---
+  // The browser sends an OPTIONS request first to check permissions.
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  // --- END: HANDLE PREFLIGHT REQUEST ---
+
+  // --- Check for POST request (no changes here) ---
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
   try {
-    // --- Get data from the request body ---
+    // --- The rest of your code to process the form and save to Firestore ---
     const { name, email, branch, mobile, hobbies, game, participate, txnId } = req.body;
-
-    // Optional: Add some basic validation
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required.' });
-    }
-
-    // --- Create a new document in the "submissions" collection ---
+    
     const submissionRef = await db.collection('submissions').add({
-      name,
-      email,
-      branch,
-      mobile,
-      hobbies,
-      game,
-      participate,
-      txnId,
-      submittedAt: new Date().toISOString(), // Add a server-side timestamp
+      name, email, branch, mobile, hobbies, game, participate, txnId,
+      submittedAt: new Date().toISOString(),
     });
 
-    // --- Send a success response ---
     res.status(200).json({ success: true, message: `Submission successful with ID: ${submissionRef.id}` });
 
   } catch (error) {
